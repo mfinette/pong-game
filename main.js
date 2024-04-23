@@ -21,6 +21,7 @@ const cameraRight = new THREE.PerspectiveCamera(95, aspectRatio / 2, 0.1, 1000 )
 const cameraLeft = new THREE.PerspectiveCamera(95, aspectRatio / 2, 0.1, 1000 );
 camera.position.set(20, 20, 0);
 cameraLeft.lookAt(0, 0, 0);
+
 //RENDERERS
 const renderer = new THREE.WebGLRenderer({ // Renderer for full screen
     canvas: document.querySelector('#c1')
@@ -53,6 +54,7 @@ function addStar(){
     star.position.set(x, y, z);
     scene.add(star)
 }
+
 Array(800).fill().forEach(addStar)
 
 // let moon;
@@ -103,8 +105,13 @@ let keyDown = {
     'o': false,
     'p': false,
     'i': false,
+    'e': false,
     'g': false,
-    'b': false
+    'b': false,
+    '1': false,
+    '2': false,
+    '3': false,
+    '4': false
 };
 
 let doubleKeyPress = {
@@ -163,9 +170,7 @@ class Arena extends THREE.Mesh {
         // const texture = textureLoader.load('purplebox.jpeg');
         const arenaColor = 0x000000;
         // Create material
-        // const material = new THREE.MeshStandardMaterial({ color: 0x8800dd, wireframe: false});
-        const material = new THREE.MeshStandardMaterial({color: 0x101030});
-        
+        const material = new THREE.MeshPhongMaterial({color: 0x101030, wireframe:false});
         // Call super constructor to set up mesh
         super(geometry, material);
         
@@ -176,7 +181,7 @@ class Arena extends THREE.Mesh {
         const halfWidth = width / 2;
         const halfHeight = height / 2;
         const halfDepth = depth / 2;
-        
+
         const leftCornerX = this.position.x - halfWidth;
         const bottomCornerY = this.position.y - halfHeight;
         const nearCornerZ = this.position.z - halfDepth;
@@ -194,6 +199,7 @@ class Arena extends THREE.Mesh {
         this.paddleRight = new Paddle(this, false);
         this.paddleLeft = new Paddle(this, true);
         this.ball = new Ball(this);
+        this.bot = new Bot(this, this.paddleRight, this.paddleLeft);
         this.isActive = true;
         this.horizontalBlur = new ShaderPass(HorizontalBlurShader);
         this.verticalBlur = new ShaderPass(VerticalBlurShader);
@@ -206,12 +212,17 @@ class Arena extends THREE.Mesh {
         this.isBlurred = false;
         this.isBeingBlurred = false;
         this.isBeingReset = false;
+        this.game = new Game(this);
         this.maxSpeed = this.width / 40;
+        this.isSplitScreen = false;
     }
     monitorArena()
     {
+        this.game.updateText();
         this.paddleLeft.light.position.copy(this.paddleLeft.position);
         this.paddleRight.light.position.copy(this.paddleRight.position);
+        this.paddleLeft.particles.updateParticles();
+        this.paddleRight.particles.updateParticles();
         if (this.ball.isRolling)
             this.ball.monitorMovement();
         this.ball.light.position.copy(this.ball.position);
@@ -219,10 +230,9 @@ class Arena extends THREE.Mesh {
         if (this.ball.isRolling)
             this.ball.rotation.y += 0.1;
         if (this.isActive)
-        {
-            this.paddleRight.animatePaddle(doubleKeyPress['ArrowRight'], doubleKeyPress['ArrowLeft'], keyDown['ArrowRight'], keyDown['ArrowLeft'], this, keyDown['ArrowUp']);
             this.paddleLeft.animatePaddle(doubleKeyPress['a'], doubleKeyPress['d'], keyDown['a'], keyDown['d'], this, keyDown['w']);
-        }
+        if (!this.bot.isPlaying)
+            this.paddleRight.animatePaddle(doubleKeyPress['ArrowRight'], doubleKeyPress['ArrowLeft'], keyDown['ArrowRight'], keyDown['ArrowLeft'], this, keyDown['ArrowUp']);
         if (keyDown[' '])
         {
             this.ball.speedX = 0;
@@ -230,7 +240,16 @@ class Arena extends THREE.Mesh {
             this.ball.isgoingRight = true;
             this.ball.isgoingLeft = false;
             this.ball.isRolling = true;
+            // this.bot.isPlaying = true;
         }
+        if (keyDown['1'])
+            this.changeTheme(new Theme1());
+        if (keyDown['2'])
+            this.changeTheme(new Theme2());
+        if (keyDown['3'])
+            this.changeTheme(new Theme3());
+        if (keyDown['4'])  
+            this.changeTheme(new Theme4());
         if (keyDown['b'])
         {
             if (!this.isBeingBlurred)
@@ -243,22 +262,41 @@ class Arena extends THREE.Mesh {
         {
             this.paddleLeft.light.power += 0.1;
             this.paddleRight.light.power += 0.1;
+            this.bot.isPlaying = !this.bot.isPlaying;
         }
-        if (keyDown['i'])
+        if (keyDown['e'])
         {
-            cameraLeft.position.copy(this.position);
+            // cameraLeft.position.copy(this.position);
             cameraLeft.position.y += this.length * 3;
             cameraLeft.position.z -= this.length * 3;
             cameraLeft.position.x += this.length * 3;
             cameraLeft.lookAt(this.position);
             swapToSplitScreen();
             this.setSplitCameraPositions(camera, cameraLeft);
+            this.game.isPlaying = true;
+            this.isSplitScreen = true;
         }
         if (keyDown['p'])
         {
             swapToFullScreen();
             this.setTopView(camera);
         }
+        if(keyDown['o'])
+            this.paddleRight.changeBlenderModel('godzilla/scene.gltf');
+        if (this.game.leftScore >= this.game.maxScore || this.game.rightScore >= this.game.maxScore)
+        {
+            this.game.isPlaying = false;
+            this.game.isOver = true;
+            setTimeout(() => {
+                this.game.isOver = false;
+                this.game.leftScore = 0;
+                this.game.rightScore = 0;
+                swapToFullScreen();
+                this.setTopView(camera);
+            }, 5000);
+        }
+        if (this.bot.isPlaying)
+            this.bot.play();
         if (this.ball.collisionWithLeftPaddle(this.paddleLeft))
             this.ball.goToRight(this.paddleLeft);
         if (this.ball.collisionWithRightPaddle(this.paddleRight))
@@ -266,50 +304,41 @@ class Arena extends THREE.Mesh {
         if (this.ball.rightScore(this.paddleLeft) && !this.isBeingReset)
         {
             this.isBeingReset = true;
+            this.game.rightScore++;
             this.resetPositions(this.paddleLeft, this.paddleRight, false, glitchLeft);
         }
         if (this.ball.leftScore(this.paddleRight) && !this.isBeingReset)
         {
+            this.game.leftScore++;
             this.isBeingReset = true;
             this.resetPositions(this.paddleRight, this.paddleLeft, true, glitchRight);
         }
     }
     setSplitCameraPositions(_cameraRight, _cameraLeft)
     {
+        const duration = 1500;
         let targetY = this.position.y + this.height * 3;
         let targetZ = this.position.z + this.width * 0.85;
         let targetX = this.position.x;
-        const duration = 1500;
         // Create tweens for each property
-        new TWEEN.Tween(_cameraLeft.position)
+        const leftTween = new TWEEN.Tween(_cameraLeft.position)
             .to({ y: targetY, z: targetZ, x:targetX }, duration)
             .easing(TWEEN.Easing.Quadratic.Out)
-            .start();
-
-        // LookAt tween
-        new TWEEN.Tween(_cameraLeft)
-            .to({}, duration) // Dummy tween, to ensure that onUpdate is called
             .onUpdate(() => {
                 _cameraLeft.lookAt(this.position);
             })
-            .start();
-
         targetY = this.position.y + this.height * 3;
         targetZ = this.position.z - this.width * 0.85;
         targetX = this.position.x;
         // Create tweens for each property
-        new TWEEN.Tween(_cameraRight.position)
+        const rightTween = new TWEEN.Tween(_cameraRight.position)
         .to({ y: targetY, z: targetZ, x: targetX }, duration)
         .easing(TWEEN.Easing.Quadratic.Out)
-        .start();
-
-        // LookAt tween
-        new TWEEN.Tween(_cameraRight)
-            .to({}, duration) // Dummy tween, to ensure that onUpdate is called
-            .onUpdate(() => {
-                _cameraRight.lookAt(this.position);
-            })
-            .start();
+        .onUpdate(() => {
+            _cameraRight.lookAt(this.position);
+        })
+        leftTween.start();
+        rightTween.start();
     }
     blurScreen()
     {
@@ -339,7 +368,7 @@ class Arena extends THREE.Mesh {
         let targetY = this.position.y + this.height + this.width;
         let targetX = this.position.x;
         let targetZ = this.position.z;
-        const duration = 3500;
+        const duration = 1500;
         new TWEEN.Tween(camera.position)
         .to({x: targetX, y: targetY, z: targetZ}, duration)
         .easing(TWEEN.Easing.Quadratic.Out)
@@ -351,6 +380,9 @@ class Arena extends THREE.Mesh {
         new TWEEN.Tween(camera.rotation)
         .to({z: targetZ, x: targetX, y: targetY}, duration)
         .easing(TWEEN.Easing.Quadratic.Out)
+        .onComplete(() => {
+            this.isSplitScreen = false;
+        })
         .start();
     }
     resetPositions(loserPaddle, winnerPaddle, leftScored, whichGlitch)
@@ -358,9 +390,7 @@ class Arena extends THREE.Mesh {
         let duration = 1150;
 
         loserPaddle.light.power = 0;
-        loserPaddle.light.color = new THREE.Color(1, 0, 0);
         winnerPaddle.light.power = 0;
-        winnerPaddle.light.color = new THREE.Color(0, 1, 0);
         this.ball.light.power = 0;
         let tmpCamera;
         if (leftScored)
@@ -414,13 +444,39 @@ class Arena extends THREE.Mesh {
            this.ball.material.color.set(this.ball.initialColor);
            this.isBeingReset = false;
         });
+        const powerPaddleLight = new TWEEN.Tween(loserPaddle.light)
+        .to({power: loserPaddle.defaultLight}, duration)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(() => {
+            winnerPaddle.light.power = loserPaddle.light.power;
+        });
+        const powerBallLight = new TWEEN.Tween(this.ball.light)
+        .to({power: this.ball.startingPower}, duration)
+        .easing(TWEEN.Easing.Quadratic.Out);
+
         ballUp.chain(ballToCamera);
         ballToCamera.chain(leftReset, rightReset, firstTween);
-        firstTween.chain(secondTween);
+        firstTween.chain(secondTween, powerPaddleLight, powerBallLight);
         ballUp.start();
         this.ball.isRolling = false;
         this.ball.speedZ = 0;
         this.ball.speedX = 0;
+    }
+    changeTheme(theme)
+    {
+        this.material.color.set(theme.arenaColor);
+        this.paddleLeft.material.color.set(theme.paddleColor);
+        this.paddleRight.material.color.set(theme.paddleColor);
+        this.paddleLeft.superChargingColor = theme.paddleSuperchargingColor;
+        this.paddleRight.superChargingColor = theme.paddleSuperchargingColor;
+        this.paddleLeft.dashingColor = theme.paddleDashingColor;
+        this.paddleRight.dashingColor = theme.paddleDashingColor;
+        this.paddleLeft.defaultColor = theme.paddleColor;
+        this.paddleRight.defaultColor = theme.paddleColor;
+        this.ball.material.color.set(theme.ballInitialColor);
+        this.ball.finalColor = theme.ballFinalColor;
+        this.ball.initialColor = theme.ballInitialColor;
+        scene.background = new THREE.Color(theme.backgroundColor);
     }
 }
 
@@ -448,7 +504,10 @@ class Paddle extends THREE.Group {
        this.add(this.paddleMesh);
 
         // Store the model name
-        this.modelName = 'spaceShip/scene.gltf';
+        if (left)
+            this.modelName = 'spaceShip/scene.gltf';
+        else
+            this.modelName = 'spaceShip/scene.gltf';
         this.model;
         // Load Blender model
         const loader = new GLTFLoader();
@@ -460,15 +519,17 @@ class Paddle extends THREE.Group {
                 if (!left) {
                     this.model.position.set(0, 0, 2); // Adjust position as needed
                     this.model.rotation.y = Math.PI;
-                } else {
-                    this.model.position.set(0, 0, -2); // Adjust position as needed
                 }
-                this.model.scale.set(0.2, 0.2, 0.2); // Adjust scale as needed
+                else
+                    this.model.position.set(0, 0, -2); // Adjust position as needed
+                if (left)
+                    this.model.scale.set(0.2, 0.2, 0.2); // Adjust scale as needed
+                else
+                    this.model.scale.set(0.2, 0.2, 0.2); // Adjust scale as needed
                 // Add the this.model to the group
                 this.add(this.model);
-        
+                
                 // Now you can access the position of paddle.paddleMesh
-                console.log("paddle.x: " + this.paddleMesh.position.x);
             },
             undefined,
             (error) => {
@@ -494,8 +555,10 @@ class Paddle extends THREE.Group {
         this.depth = paddleDepth;
         // Store arena reference
         this.arena = arena;
+        this.scene = scene;
 
         // Add other properties and methods as needed
+        this.particles = new Particle(this.scene, 100, left);
         this.light = new THREE.PointLight(0x4B4FC5);
         scene.add(this.light);
         this.defaultLight = this.arena.width * this.arena.length / 7.5;
@@ -506,6 +569,28 @@ class Paddle extends THREE.Group {
         this.light.castShadow = true;
         this.isPowered = false;
         this.isDashing = false;
+        this.defaultFlippingSpeed = 10;
+        this.flippingSpeed = 0.5;
+    }
+    async changeBlenderModel(modelName)
+    {
+        this.scene.remove(this.model);
+        const loader = new GLTFLoader();
+        loader.load(
+            modelName,
+            (gltf) => {
+                this.model = gltf.scene;
+                // Position the this.model relative to the paddle
+                this.model.position.set(0, 0, 2); // Adjust position as needed
+                this.model.rotation.y = Math.PI;
+                this.model.scale.set(0.15, 0.15, 0.15); // Adjust scale as needed
+                this.add(this.model);
+            },
+            undefined,
+            (error) => {
+                console.error('Error loading model:', error);
+            }
+        );
     }
     animatePaddle(doubleKeyPressRight, doubleKeyPressLeft, keyRight, keyLeft, arena, keyPower)
     {
@@ -539,6 +624,8 @@ class Paddle extends THREE.Group {
             this.material.color.set(this.superChargingColor);
             this.isPowered = true;
         }
+        if (this.arena.ball.isSupercharging && this.position.z * this.arena.ball.position.z > 0)
+            this.model.rotation.z += this.flippingSpeed;
     }
     dash(range, isLeft)
     {
@@ -580,7 +667,7 @@ class Paddle extends THREE.Group {
         // make the spaceship flip while dashing
         let targetRotation;
         if (this.model.rotation.z == 0)
-            targetRotation = Math.PI;
+            targetRotation = Math.PI * 2;
         else
             targetRotation = 0;
         new TWEEN.Tween(this.model.rotation)
@@ -613,7 +700,7 @@ class Ball extends THREE.Mesh {
         this.speedX = 0;
         this.speedY = 0;
         this.isgoingLeft = false;
-        this.isgoingRight = true;
+        this.isgoingRight = false;
         this.initialColor = this.material.color.clone();
         this.finalColor = new THREE.Color(0xFFFFFF);
         this.zLimit1 = arena.position.z + arena.width / 2;
@@ -651,9 +738,9 @@ class Ball extends THREE.Mesh {
     }
     collisionWithLeftPaddle(paddle)
     {
-        if (this.checkCollisionBoxSphere(paddle, this) && this.isgoingLeft)
+        if (this.checkCollisionBoxSphere(paddle, this) && this.isgoingLeft && Math.abs(this.speedZ) > 0)
         {
-            console.log("Collision with left paddle");
+            paddle.particles.explodeParticles(paddle.position, paddle.material.color);
             this.justCollisioned = true;
             this.isgoingLeft = !this.isgoingLeft;
             this.isgoingRight = !this.isgoingRight;
@@ -662,7 +749,20 @@ class Ball extends THREE.Mesh {
                 // Calculate the interpolation factor
                 const factor = this.bounceCount / 20;
                 // Perform linear interpolation
-                this.material.color.lerpColors(this.initialColor, this.finalColor, factor);
+                // this.material.color.lerpColors(this.initialColor, this.finalColor, factor);
+            }
+            // make the spaceship do a backflip
+            if (!paddle.isPowered)
+            {
+                let targetRotation;
+                if (paddle.model.rotation.y == 0)
+                    targetRotation = Math.PI * 2;
+                else
+                    targetRotation = 0;
+                new TWEEN.Tween(paddle.model.rotation)
+                .to({y: targetRotation}, 500)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
             }
             return true;
         }
@@ -670,9 +770,9 @@ class Ball extends THREE.Mesh {
     }
     collisionWithRightPaddle(paddle)
     {
-        if (this.checkCollisionBoxSphere(paddle, this) && this.isgoingRight)
+        if (this.checkCollisionBoxSphere(paddle, this) && this.isgoingRight && this.speedZ > 0)
         {
-            console.log("Collision with right paddle");
+            paddle.particles.explodeParticles(paddle.position, paddle.material.color);
             this.justCollisioned = true;
             this.isgoingRight = !this.isgoingRight;
             this.isgoingLeft = !this.isgoingLeft;
@@ -681,7 +781,20 @@ class Ball extends THREE.Mesh {
                 // Calculate the interpolation factor
                 const factor = this.bounceCount / 20;
                 // Perform linear interpolation
-                this.material.color.lerpColors(this.initialColor, this.finalColor, factor);
+                // this.material.color.lerpColors(this.initialColor, this.finalColor, factor);
+            }
+            // make the spaceship do a backflip
+            if (!paddle.isPowered)
+            {
+                let targetRotation;
+                if (paddle.model.rotation.y == Math.PI)
+                    targetRotation = Math.PI * 3;
+                else
+                    targetRotation = Math.PI;
+                new TWEEN.Tween(paddle.model.rotation)
+                .to({y: targetRotation}, 500)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
             }
             return true;
         }
@@ -721,8 +834,13 @@ class Ball extends THREE.Mesh {
                 }
                 this.speedX = (this.position.x - paddle.position.x) / paddle.width * 0.015 * this.arena.width;
                 this.isSupercharging = false;
+                const rotationReset = paddle.model.rotation.z + (Math.PI - paddle.model.rotation.z % Math.PI);
+                new TWEEN.Tween(paddle.model.rotation)
+                .to({z: rotationReset}, 500)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
                 paddle.isPowered = false;
-                paddle.material.color.set(0xffffff);
+                paddle.material.color.set(paddle.defaultColor);
             }, 2500);
         }
     }
@@ -760,8 +878,13 @@ class Ball extends THREE.Mesh {
                 }
                 this.speedX = (this.position.x - paddle.position.x) / paddle.width * 0.015 * this.arena.width;
                 this.isSupercharging = false;
+                const rotationReset = paddle.model.rotation.z + (Math.PI - paddle.model.rotation.z % Math.PI);
+                new TWEEN.Tween(paddle.model.rotation)
+                .to({z: rotationReset}, 500)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .start();
                 paddle.isPowered = false;
-                paddle.material.color.set(0xffffff);
+                paddle.material.color.set(paddle.defaultColor);
             }, 2500);
         }
     }
@@ -775,6 +898,213 @@ class Ball extends THREE.Mesh {
         this.position.x += this.speedX;
         if (this.speedZ > 0)
             this.rotation.x += 0.1;
+    }
+}
+
+class Bot {
+    constructor(arena, ownPaddle, enemyPaddle)
+    {
+        this.arena = arena;
+        this.ownPaddle = ownPaddle;
+        this.enemyPaddle = enemyPaddle;
+        this.isPlaying = false;
+    }
+    play()
+    {
+        let paddleBorderRight = this.ownPaddle.position.x + this.ownPaddle.width / 2;
+        let paddleBorderLeft = this.ownPaddle.position.x - this.ownPaddle.width / 2;
+        let distanceFromBorderRight = this.arena.ball.position.x - paddleBorderRight;
+        let distanceFromBorderLeft = this.arena.ball.position.x - paddleBorderLeft;
+        let targetX;
+        if (distanceFromBorderRight < distanceFromBorderLeft)
+            targetX = this.arena.ball.position.x + this.ownPaddle.width / 2;
+        else
+            targetX = this.arena.ball.position.x - this.ownPaddle.width / 2;
+        if (this.ownPaddle.position.x < targetX)
+            this.ownPaddle.position.x += 0.016 * this.arena.length;
+        if (this.ownPaddle.position.x > targetX)
+            this.ownPaddle.position.x -= 0.016 * this.arena.length;
+    }
+}
+
+class Game {
+    constructor(arena) {
+        this.leftScore = 0;
+        this.rightScore = 0;
+        this.maxScore = 3;
+        this.isPlaying = false;
+        this.isOver = false;
+        this.arena = arena;
+        this.loserPaddle;
+        this.winnerPaddle;
+        this.enterCenterScoreText = document.getElementById('enterCenterScoreText');
+        enterCenterScoreText.textContent = '';
+        this.enterRightScoreText = document.getElementById('enterRightScoreText');
+        enterRightScoreText.textContent = '';
+        this.enterLeftScoreText = document.getElementById('enterLeftScoreText');
+        enterLeftScoreText.textContent = '';
+    }
+    updateText()
+    {
+        if (this.isPlaying)
+            this.enterCenterScoreText.textContent = this.leftScore + ' - ' + this.rightScore;
+        else if (this.isOver)
+            this.enterCenterScoreText.textContent = 'Game Over, final score: ' + this.leftScore + ' - ' + this.rightScore;
+        if (!this.isPlaying && !this.isOver)
+        this.enterCenterScoreText.textContent = 'Welcome to PONG ! Press E to start a game';
+    }
+}
+
+class Particle {
+    constructor(scene, particleCount, left) {
+        this.scene = scene;
+        this.particleCount = particleCount;
+
+        // Create particle geometry
+        this.geometry = new THREE.BufferGeometry();
+        this.positions = new Float32Array(this.particleCount * 3);
+        this.colors = new Float32Array(this.particleCount * 3);
+
+        // Add initial position and color for each particle
+        for (let i = 0; i < this.particleCount; i++) {
+            this.positions[i * 3] = 0;
+            this.positions[i * 3 + 1] = 0;
+            this.positions[i * 3 + 2] = 0;
+
+            this.colors[i * 3] = 0;
+            this.colors[i * 3 + 1] = 0;
+            this.colors[i * 3 + 2] = 0;
+        }
+
+        this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+        this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+
+        // Create particle material
+        this.material = new THREE.PointsMaterial({
+            size: 0.1, // Adjust size as needed
+            vertexColors: THREE.VertexColors // Enable vertex colors
+        });
+
+        // Create particle system
+        this.particleSystem = new THREE.Points(this.geometry, this.material);
+        this.scene.add(this.particleSystem);
+
+        // Initialize particle velocities (for example, random initial velocities)
+        this.velocities = [];
+        if (left)
+        {
+            for (let i = 0; i < this.particleCount; i++) {
+                let velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 3,
+                    (Math.random() - 0.5) * 3,
+                    (Math.random()) * 0
+                );
+                this.velocities.push(velocity);
+            }
+        }
+        else
+        {
+            for (let i = 0; i < this.particleCount; i++) {
+                let velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 3,
+                    (Math.random() - 0.5) * 3,
+                    (Math.random()) * -0
+                );
+                this.velocities.push(velocity);
+            }
+        }
+    }
+    explodeParticles(position, color) {
+        for (let i = 0; i < this.particleCount; i++) {
+            let index = i * 3;
+            this.positions[index] = position.x;
+            this.positions[index + 1] = position.y;
+            this.positions[index + 2] = position.z;
+
+            // Color (white in this example)
+            this.colors[index] = color.r;
+            this.colors[index + 1] = color.g;
+            this.colors[index + 2] = color.b;
+        }
+
+        this.geometry.attributes.position.needsUpdate = true;
+        this.geometry.attributes.color.needsUpdate = true;
+    }
+    updateParticles() {
+        for (let i = 0; i < this.particleCount; i++) {
+            let index = i * 3;
+            this.positions[index] += this.velocities[i].x;
+            this.positions[index + 1] += this.velocities[i].y;
+            this.positions[index + 2] += this.velocities[i].z;
+        }
+        this.geometry.attributes.position.needsUpdate = true;
+    }
+}
+
+class Theme {
+    constructor() {
+        this.arenaColor = '#00FF00'; // Green
+        this.paddleColor = '#BBBBBB'; // Red
+        this.paddleDashingColor = '#0000FF'; // Blue
+        this.paddleSuperchargingColor = '#FFFF00'; // Yellow
+        this.ballInitialColor = '#FF00FF'; // Magenta
+        this.ballFinalColor = '#FFFFFF'; // Cyan
+        this.backgroundColor = '#000000'; // Black
+    }
+}
+
+class Theme1 extends Theme {
+    constructor() {
+        super(); // Call the parent class constructor
+        this.arenaColor = '#FF0000'; // Red
+        this.paddleColor = '#00FF00'; // Green
+        this.paddleDashingColor = '#0000FF'; // Blue
+        this.paddleSuperchargingColor = '#FFFF00'; // Yellow
+        this.ballInitialColor = '#FF00FF'; // Magenta
+        this.ballFinalColor = '#00FFFF'; // Cyan
+        this.backgroundColor = '#000000'; // Black
+    }
+}
+
+// Subclass theme2
+class Theme2 extends Theme {
+    constructor() {
+        super(); // Call the parent class constructor
+        this.arenaColor = '#00FF00'; // Green
+        this.paddleColor = '#000000'; // Red
+        this.paddleDashingColor = '#0000FF'; // Blue
+        this.paddleSuperchargingColor = '#FFFF00'; // Yellow
+        this.ballInitialColor = '#FFFFFF'; // Magenta
+        this.ballFinalColor = '#FFFFFF'; // Cyan
+        this.backgroundColor = '#000000'; // Black
+    }
+}
+
+// Subclass theme3
+class Theme3 extends Theme {
+    constructor() {
+        super(); // Call the parent class constructor
+        this.arenaColor = '#0000FF'; // Blue
+        this.paddleColor = '#FF0000'; // Red
+        this.paddleDashingColor = '#00FF00'; // Green
+        this.paddleSuperchargingColor = '#FFFF00'; // Yellow
+        this.ballInitialColor = '#FF00FF'; // Magenta
+        this.ballFinalColor = '#00FFFF'; // Cyan
+        this.backgroundColor = '#000000'; // Black
+    }
+}
+
+// Subclass theme4
+class Theme4 extends Theme {
+    constructor() {
+        super(); // Call the parent class constructor
+        this.arenaColor = '#FFFF00'; // Yellow
+        this.paddleColor = '#FF0000'; // Red
+        this.paddleDashingColor = '#00FF00'; // Green
+        this.paddleSuperchargingColor = '#0000FF'; // Blue
+        this.ballInitialColor = '#FF00FF'; // Magenta
+        this.ballFinalColor = '#00FFFF'; // Cyan
+        this.backgroundColor = '#000000'; // Black
     }
 }
 
@@ -872,7 +1202,7 @@ composer1.addPass(arena1.verticalBlur);
 composer2.addPass(arena1.horizontalBlur);
 composer2.addPass(arena1.verticalBlur);
 
-// dotScreen
+// // dotScreen
 // const effect1 = new ShaderPass( DotScreenShader );
 // 				effect1.uniforms[ 'scale' ].value = 256;
 // 				composer1.addPass( effect1 );
@@ -884,12 +1214,7 @@ function animate()
     // controls.update();
     TWEEN.update();
     arena1.monitorArena();
-    monitorScreen();
-    // cameraDebug();
-    // renderer.render(scene, camera);
     composer1.render();
     composer2.render();
-    // renderer1.render(scene, cameraRight);
-    // renderer2.render(scene, cameraLeft);
 }
 animate();

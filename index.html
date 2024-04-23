@@ -41,12 +41,51 @@
     #c2 {
         order: 2; /* Set the order of #c2 to 2 (display on the right) */
     }
+    /* Style the container */
+    #enterScoreTextContainer {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: fixed;
+        width: 100%;
+        height: 50px; /* Adjust the height as desired */
+        bottom: 20%; /* Lower the container */
+        padding: 0 10px; /* Add padding for better spacing */
+    }
+
+    #enterCenterScoreText {
+        color: #0d9181;
+        font-size: 80px;
+        margin: auto;
+        order: 2;
+        /*margin: auto; /* Center the text horizontally */
+    }
+
+    #enterRightScoreText {
+        color: #ffffff;
+        font-size: 30px;
+        order:3;
+        margin-right: 25%; /* Add margin to the right */
+    }
+
+    #enterLeftScoreText {
+        color: #ffffff;
+        font-size: 30px;
+        order: 1;
+        margin-left: 25%; /* Add margin to the left */
+    }
 </style>
 <body>
     <div id="a">
         <canvas id="c1"></canvas>
         <canvas id="c2"></canvas>
     </div>
+    <div id="enterScoreTextContainer">
+        <div id="enterCenterScoreText"></div>
+        <div id="enterRightScoreText"></div>
+        <div id="enterLeftScoreText"></div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <script type="module" src="main.js"></script>
 </body>
