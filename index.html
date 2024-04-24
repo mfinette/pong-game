@@ -5,6 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sample Website</title>
+    <link rel="stylesheet" href="style.css">
     <script type="importmap">
         {
           "imports": {
@@ -14,81 +15,30 @@
         }
       </script>
 </head>
-<style>
-    body {
-        margin: 0; /* Remove default body margin */
-        overflow: hidden; /* Hide overflow to prevent scrollbars */
-    }
 
-    #a {
-        display: flex;
-        flex-direction: row;
-        background-color: #333; /* Set background color to black/gray space color */
-        width: 100vw; /* Use viewport width for container */
-        height: 100vh; /* Use viewport height for container */
-    }
-
-    #c1, #c2 {
-        width: 100%; /* Each canvas takes up 50% of the window width */
-        height: 100%; /* Each canvas fills the entire window height */
-        margin: 1px;
-    }
-
-    #c1 {
-        order: 1; /* Set the order of #c1 to 1 (display on the left) */
-    }
-
-    #c2 {
-        order: 2; /* Set the order of #c2 to 2 (display on the right) */
-    }
-    /* Style the container */
-    #enterScoreTextContainer {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: fixed;
-        width: 100%;
-        height: 50px; /* Adjust the height as desired */
-        bottom: 20%; /* Lower the container */
-        padding: 0 10px; /* Add padding for better spacing */
-    }
-
-    #enterCenterScoreText {
-        color: #0d9181;
-        font-size: 80px;
-        margin: auto;
-        order: 2;
-        /*margin: auto; /* Center the text horizontally */
-    }
-
-    #enterRightScoreText {
-        color: #ffffff;
-        font-size: 30px;
-        order:3;
-        margin-right: 25%; /* Add margin to the right */
-    }
-
-    #enterLeftScoreText {
-        color: #ffffff;
-        font-size: 30px;
-        order: 1;
-        margin-left: 25%; /* Add margin to the left */
-    }
-</style>
 <body>
     <div id="a">
         <canvas id="c1"></canvas>
         <canvas id="c2"></canvas>
     </div>
-    <div id="enterScoreTextContainer">
-        <div id="enterCenterScoreText"></div>
-        <div id="enterRightScoreText"></div>
-        <div id="enterLeftScoreText"></div>
-    </div>
+
+    <div class="scoreUI">
+        <div class="centerRectangle glow"></div>
+        <div class="asset">
+            <img src="scoreUI2.png" class="shadowfilter">
+            <div id="leftScore1" class="parallelogram glow" style="left: 90%;"></div>
+            <div id="leftScore2" class="parallelogram glow" style="left: 101%;"></div>
+            <div id="leftScore3" class="parallelogram glow" style="left: 112%;;"></div>
+        </div>
+        <div class="asset" style="transform: scaleX(-1);">
+            <img src="scoreUI2.png" class="shadowfilter">
+            <div id="rightScore1" class="parallelogram glow" style="left: 90%;"></div>
+            <div id="rightScore2" class="parallelogram glow" style="left: 101%;"></div>
+            <div id="rightScore3" class="parallelogram glow" style="left: 112%;;"></div>
+        </div>
+    </div> 
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
     <script type="module" src="main.js"></script>
 </body>
 </html>
-
-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

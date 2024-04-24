@@ -1,0 +1,76 @@
+    body {
+        margin: 0; /* Remove default body margin */
+        overflow: hidden; /* Hide overflow to prevent scrollbars */
+    }
+
+    #a {
+        display: flex;
+        flex-direction: row;
+        background-color: #333; /* Set background color to black/gray space color */
+        width: 100vw; /* Use viewport width for container */
+        height: 100vh; /* Use viewport height for container */
+    }
+
+    #c1, #c2 {
+        width: 100%; /* Each canvas takes up 50% of the window width */
+        height: 100%; /* Each canvas fills the entire window height */
+        margin: 1px;
+    }
+
+    #c1 {
+        order: 1; /* Set the order of #c1 to 1 (display on the left) */
+    }
+
+    #c2 {
+        order: 2; /* Set the order of #c2 to 2 (display on the right) */
+    }
+
+    .centerRectangle {
+    bottom: 30%;
+    border-style: solid;
+    width: 60px;
+    height: 60px;
+    background-color: #0008ff51;
+    transform: rotate(45deg);
+    position: fixed;
+    transition: box-shadow 0.5s ease, border-color 0.5s ease;
+}
+
+    .scoreUI {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: fixed;
+        transform: translate(-49.80%, -50%) scale(1); /* Rotate 180 degrees */
+        left: 50%;
+        top: 10%; /* Lower the container */
+    }
+    
+    .asset{
+        margin: 0 20% 0 20%;
+        position: relative; /* Make assets relative to .scoreUI */
+    }
+
+    .parallelogram {
+        border-style: solid;
+        border-width: 3px 5px 3px 5px;
+        width: 40px;
+        height: 50px;
+        background-color: #0008ff51;
+        transform: skewX(45deg);
+        position: absolute;
+        top: 10%;
+        animation: neonEffect 1.5s ease infinite alternate; /* Apply neon effect animation */
+        transform-origin: left top;
+    }
+
+    .glow {
+        border-color: #3777ff; /* Change border color to the shine color */
+        box-shadow: 0 0 100px #0724ff; /* Add a white shadow */
+    }
+
+    .shadowfilter {
+        filter: drop-shadow(0px 0px 20px #0724ff);
+    }
+
+    
