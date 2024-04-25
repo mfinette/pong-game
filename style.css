@@ -14,7 +14,6 @@
     #c1, #c2 {
         width: 100%; /* Each canvas takes up 50% of the window width */
         height: 100%; /* Each canvas fills the entire window height */
-        margin: 1px;
     }
 
     #c1 {
@@ -26,22 +25,58 @@
     }
 
     .centerRectangle {
-    bottom: 30%;
-    border-style: solid;
-    width: 60px;
-    height: 60px;
-    background-color: #0008ff51;
-    transform: rotate(45deg);
-    position: fixed;
-    transition: box-shadow 0.5s ease, border-color 0.5s ease;
-}
+        bottom: 30%;
+        border-style: solid;
+        width: 60px;
+        height: 60px;
+        background-color: #0008ff51;
+        transform: rotate(45deg);
+        position: fixed;
+        transition: box-shadow 0.5s ease, border-color 0.5s ease;
+        overflow: hidden;
+    }
+    
+    .speedbar {
+        width: 150%; /* Fill horizontally */
+        height: 150%; /* Fill vertically */
+        background-color: rgba(255, 255, 255, 0.8);
+        position: relative;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        left: 150%;
+        top: 150%;
+    }
+    
+
+    .flag {
+        background-size: 50%;
+        position: absolute;
+        width: 139%;
+        height: 139%;
+        background-size: contain;
+        background-position: center;
+        opacity: 0; /* Initially hide the flag */
+        transform: rotate(-45deg);
+        transition: opacity 0.5s ease; /* Add a smooth transition effect */
+    }
+
+    .bluebar {
+        background-color: #0008ff51;
+        border: 1px solid #ffffffff;
+        height: 100%;
+        position: fixed;
+        transform: translate(-50%, -50%);
+        left: 50%;
+        top: 63%;
+        transition: opacity 2s ease;
+        opacity: 0;
+    }
 
     .scoreUI {
         display: flex;
         justify-content: center;
         align-items: center;
         position: fixed;
-        transform: translate(-49.80%, -50%) scale(1); /* Rotate 180 degrees */
+        transform: translate(-50%, -50%) scale(1); /* Rotate 180 degrees */
         left: 50%;
         top: 10%; /* Lower the container */
     }

@@ -151,6 +151,8 @@ document.addEventListener('keyup', (event) => {
     }
 });
 
+var blueBar = document.getElementsByClassName("bluebar");
+
 function cameraDebug()
 {
     console.log("\n\ncamera.position.x =  " + camera.position.x);
@@ -415,6 +417,7 @@ class Arena extends THREE.Mesh {
         this.ball.material.color.set(this.ball.initialColor);
         this.ball.particles.explodeParticles(this.ball.position, this.ball.initialColor);
         this.ball.position.copy(this.ball.startingPoint);
+        this.ball.updateSpeedBar();
     }
     resetPositions(loserPaddle, winnerPaddle, leftScored, whichGlitch)
     {
@@ -596,7 +599,8 @@ class Paddle extends THREE.Group {
         // Store arena reference
         this.arena = arena;
         this.scene = scene;
-
+        this.left = left;
+        this.canDash = true;
         // Add other properties and methods as needed
         this.particles = new Particle(this.scene, 100, left, this, false);
         this.light = new THREE.PointLight(0x4B4FC5);
@@ -608,8 +612,6 @@ class Paddle extends THREE.Group {
         this.dashingColor = new THREE.Color(0xf4ff69);
         this.light.castShadow = true;
         this.isPowered = false;
-        this.isDashing = false;
-        this.defaultFlippingSpeed = 10;
         this.flippingSpeed = 0.5;
     }
     async changeBlenderModel(modelName)
@@ -634,27 +636,23 @@ class Paddle extends THREE.Group {
     }
     animatePaddle(doubleKeyPressRight, doubleKeyPressLeft, keyRight, keyLeft, arena, keyPower)
     {
-        if (doubleKeyPressRight && !this.isDashing)
-        {
-            this.isDashing = true;
-            this.dash(arena.width * 16, false);
+        if (doubleKeyPressRight && this.canDash) {
+            this.canDash = false;
+            this.dash(arena.width * 20, false);
             doubleKeyPressRight = false;
         }
-        if (doubleKeyPressLeft && !this.isDashing)
-        {
-            this.isDashing = true;
-            this.dash(arena.width * -16, true);
+        if (doubleKeyPressLeft && this.canDash) {
+            this.canDash = false;
+            this.dash(arena.width * -20, true);
             doubleKeyPressLeft = false;
         }
         // Detect normal paddle movement
-        if (keyRight && this.position.x + 0.008 <= arena.rightCorner.x)
-        {
+        if (keyRight && this.position.x + 0.008 <= arena.rightCorner.x) {
             this.position.x += 0.016 * arena.length;
             if (arena.ball.isSupercharging && (this.position.z * arena.ball.position.z > 0))
                 arena.ball.position.x += 0.016 * arena.length;
         }
-        if (keyLeft && this.position.x - 0.008 >= arena.leftCorner.x)
-        {
+        if (keyLeft && this.position.x - 0.008 >= arena.leftCorner.x) {
             this.position.x -= 0.016 * arena.length;
             if (arena.ball.isSupercharging && (this.position.z * arena.ball.position.z > 0))
                 arena.ball.position.x -= 0.016 * arena.length;
@@ -671,15 +669,12 @@ class Paddle extends THREE.Group {
     {
         let targetX;
         this.material.color.set(this.dashingColor);
-        if (!isLeft)
-        {
-            targetX = this.position.x + range * 0.016;
+        targetX = this.position.x + range * 0.016;
+        if (!isLeft) {
             if (targetX > this.arena.rightCorner.x)
                 targetX = this.arena.rightCorner.x;
         }
-        else
-        {
-            targetX = this.position.x + range * 0.016;
+        else {
             if (targetX < this.arena.leftCorner.x)
                 targetX = this.arena.leftCorner.x;
         }
@@ -695,7 +690,6 @@ class Paddle extends THREE.Group {
         .easing(TWEEN.Easing.Quadratic.Out)
         .onComplete(() => {
             setTimeout(() => {
-                this.isDashing = false;
                 if (this.isPowered)
                     this.material.color.set(this.superChargingColor);
                 else
@@ -706,16 +700,21 @@ class Paddle extends THREE.Group {
         .start();
         // make the spaceship flip while dashing
         let targetRotation;
-        if (this.model.rotation.z == 0)
-            targetRotation = Math.PI * 2;
+        if ((isLeft && !this.left) || (!isLeft && this.left))
+            targetRotation = this.model.rotation.z - Math.PI * 2;
         else
-            targetRotation = 0;
+            targetRotation = this.model.rotation.z + Math.PI * 2;
         new TWEEN.Tween(this.model.rotation)
-        .to({z: targetRotation}, 250)
+        .to({z: targetRotation}, 400)
         .easing(TWEEN.Easing.Quadratic.Out)
+        .onComplete(() => {
+            this.canDash = true;
+        })
         .start();
     }
 }
+
+const speedBar = document.getElementsByClassName("speedbar");
 
 class Ball extends THREE.Mesh {
     constructor(arena)
@@ -739,7 +738,6 @@ class Ball extends THREE.Mesh {
         this.position.copy(this.startingPoint);
         this.isRolling = false;
         this.speedX = 0;
-        this.speedY = 0;
         this.isgoingLeft = false;
         this.isgoingRight = false;
         this.initialColor = this.material.color.clone();
@@ -753,6 +751,13 @@ class Ball extends THREE.Mesh {
         this.justCollisioned = false;
         this.particles = new Particle(this.scene, 100000, false, this, true);
 
+    }
+    updateSpeedBar() {
+        console.log(this.speedZ);
+        console.log(this.arena.maxSpeed);
+        console.log(-105 * (Math.abs(this.speedZ)) / this.maxSpeed + 155 + '%');
+        speedBar.item(0).style.top =  -105 * (Math.abs(this.speedZ)) / this.arena.maxSpeed + 155 + '%';
+        speedBar.item(0).style.left = -105 * (Math.abs(this.speedZ)) / this.arena.maxSpeed + 155 + '%';
     }
     leftScore(paddle)
     {
@@ -797,15 +802,18 @@ class Ball extends THREE.Mesh {
             // make the spaceship do a backflip
             if (!paddle.isPowered)
             {
-                let targetRotation;
-                if (paddle.model.rotation.y == 0)
-                    targetRotation = Math.PI * 2;
-                else
-                    targetRotation = 0;
-                new TWEEN.Tween(paddle.model.rotation)
-                .to({y: targetRotation}, 500)
+                console.log(this.speedZ);
+                let targetPosition;
+                let initialPosition = paddle.model.position.z;
+                targetPosition = paddle.model.position.z - 2 * -this.speedZ;
+                const gobackTween = new TWEEN.Tween(paddle.model.position)
+                .to({z: targetPosition}, 100)
                 .easing(TWEEN.Easing.Quadratic.Out)
-                .start();
+                const goForthTween = new TWEEN.Tween(paddle.model.position)
+                .to({z: initialPosition}, 1000)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                gobackTween.chain(goForthTween);
+                gobackTween.start();
             }
             return true;
         }
@@ -829,15 +837,17 @@ class Ball extends THREE.Mesh {
             // make the spaceship do a backflip
             if (!paddle.isPowered)
             {
-                let targetRotation;
-                if (paddle.model.rotation.y == Math.PI)
-                    targetRotation = Math.PI * 3;
-                else
-                    targetRotation = Math.PI;
-                new TWEEN.Tween(paddle.model.rotation)
-                .to({y: targetRotation}, 500)
+                let targetPosition;
+                let initialPosition = paddle.model.position.z;
+                targetPosition = paddle.model.position.z + 2 * this.speedZ;
+                const gobackTween = new TWEEN.Tween(paddle.model.position)
+                .to({z: targetPosition}, 100)
                 .easing(TWEEN.Easing.Quadratic.Out)
-                .start();
+                const goForthTween = new TWEEN.Tween(paddle.model.position)
+                .to({z: initialPosition}, 1000)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                gobackTween.chain(goForthTween);
+                gobackTween.start();
             }
             return true;
         }
@@ -852,10 +862,11 @@ class Ball extends THREE.Mesh {
                 this.speedX = distanceFromCenter * 0.015 * this.arena.width;
             else
                 this.speedX += distanceFromCenter * 0.015 * this.arena.width;
-            if (Math.abs(this.speedZ) <= this.arena.width / 40)
+            if (Math.abs(this.speedZ) * 1.08 <= this.arena.width / 40)
                 this.speedZ *= -1.08;
             else
                 this.speedZ *= -1;
+            this.updateSpeedBar();
         }
         else
         {
@@ -868,6 +879,7 @@ class Ball extends THREE.Mesh {
                     this.speedZ = tmpSpeed * -1;
                 else
                     this.speedZ = tmpSpeed * -1.5;
+                this.updateSpeedBar();
                 if (Math.abs(this.speedZ) > this.arena.maxSpeed)
                 {
                     if (this.speedZ * this.arena.maxSpeed < 0)
@@ -877,14 +889,14 @@ class Ball extends THREE.Mesh {
                 }
                 this.speedX = (this.position.x - paddle.position.x) / paddle.width * 0.015 * this.arena.width;
                 this.isSupercharging = false;
-                const rotationReset = paddle.model.rotation.z + (Math.PI - paddle.model.rotation.z % Math.PI);
+                const rotationReset = paddle.model.rotation.z + (Math.PI * 2 - paddle.model.rotation.z % Math.PI);
                 new TWEEN.Tween(paddle.model.rotation)
                 .to({z: rotationReset}, 500)
                 .easing(TWEEN.Easing.Quadratic.Out)
                 .start();
                 paddle.isPowered = false;
                 paddle.material.color.set(paddle.defaultColor);
-            }, 2500);
+            }, 1500);
         }
     }
     goToRight(paddle)
@@ -896,10 +908,11 @@ class Ball extends THREE.Mesh {
                 this.speedX = distanceFromCenter * 0.015 * this.arena.width;
             else
                 this.speedX += distanceFromCenter * 0.015 * this.arena.width;
-            if (Math.abs(this.speedZ) <= this.arena.maxSpeed)
+            if (Math.abs(this.speedZ) * 1.08 <= this.arena.maxSpeed)
                 this.speedZ *= -1.08;
             else
                 this.speedZ *= -1;
+            this.updateSpeedBar();
         }
         else
         {
@@ -912,6 +925,7 @@ class Ball extends THREE.Mesh {
                     this.speedZ = tmpSpeed * -1;
                 else
                     this.speedZ = tmpSpeed * -1.5;
+                this.updateSpeedBar();
                 if (Math.abs(this.speedZ) > this.arena.maxSpeed)
                 {
                     if (this.speedZ * this.arena.maxSpeed < 0)
@@ -921,14 +935,14 @@ class Ball extends THREE.Mesh {
                 }
                 this.speedX = (this.position.x - paddle.position.x) / paddle.width * 0.015 * this.arena.width;
                 this.isSupercharging = false;
-                const rotationReset = paddle.model.rotation.z + (Math.PI - paddle.model.rotation.z % Math.PI);
+                const rotationReset = paddle.model.rotation.z + (Math.PI * 2 - paddle.model.rotation.z % Math.PI);
                 new TWEEN.Tween(paddle.model.rotation)
                 .to({z: rotationReset}, 500)
                 .easing(TWEEN.Easing.Quadratic.Out)
                 .start();
                 paddle.isPowered = false;
                 paddle.material.color.set(paddle.defaultColor);
-            }, 2500);
+            }, 1500);
         }
     }
     monitorMovement()
@@ -1187,11 +1201,17 @@ function swapToSplitScreen() {
             .onUpdate(() => {
                 camera.updateProjectionMatrix();
             })
+            .onComplete(() => {
+                blueBar[0].style.transition = "opacity 2s ease";
+                blueBar[0].style.opacity = 0.2;
+            })
             .start();
 }
 
 function swapToFullScreen()
 {
+    blueBar[0].style.transition = "opacity 0.5s ease";
+    blueBar[0].style.opacity = 0;
     const targetWidth = window.innerWidth;
     const duration = 500; // Animation duration in milliseconds
     new TWEEN.Tween(renderer.domElement)
@@ -1219,7 +1239,7 @@ function monitorScreen()
 }
 
 const centerPosition = new THREE.Vector3(0, 0, 0);
-const arena1 = new Arena(centerPosition, 20, 4, 34);
+const arena1 = new Arena(centerPosition, 28, 4, 34);
 scene.add(arena1, arena1.paddleRight, arena1.paddleLeft, arena1.ball);
 
 let renderPass1 = new RenderPass(scene, camera);
