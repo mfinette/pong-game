@@ -10,6 +10,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
 import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
 import { DotScreenShader } from 'three/addons/shaders/DotScreenShader.js';
+import { HalftonePass } from 'three/addons/postprocessing/HalftonePass.js';
 
 // CAMERA RENDERER AND SCENE //
 const scene = new THREE.Scene();
@@ -23,7 +24,8 @@ cameraLeft.lookAt(0, 0, 0);
 
 //RENDERERS
 const renderer = new THREE.WebGLRenderer({ // Renderer for full screen
-    canvas: document.querySelector('#c1')
+    canvas: document.querySelector('#c1'),
+    antialias: false
 });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -31,7 +33,8 @@ renderer.render(scene, camera);
 renderer.autoClear = false;
 
 const renderer2 = new THREE.WebGLRenderer({ // Renderer for split screen
-    canvas: document.querySelector('#c2')
+    canvas: document.querySelector('#c2'),
+    antialias: false
 })
 renderer2.setPixelRatio(window.devicePixelRatio);
 renderer2.setSize(window.innerWidth / 2, window.innerHeight); // Set width to half of window width
@@ -232,53 +235,58 @@ class Arena extends THREE.Mesh {
             // Create tweens for each property
             const firstTween = new TWEEN.Tween(camera.position)
                 .to({x: this.viewPoint1.x, y: this.viewPoint1.y, z: this.viewPoint1.z}, duration)
-                .easing(TWEEN.Easing.Linear.None)
+                .easing(TWEEN.Easing.Quadratic.InOut)
                 .onUpdate(() => {
+                    if (!this.isAnimatingCamera)
+                        firstTween.stop();
                     camera.lookAt(this.position);
                 })
                 .onComplete(() => {
-                    if (this.isAnimatingCamera)
-                        secondTween.start();
+                    secondTween.start();
                 })
             const secondTween = new TWEEN.Tween(camera.position)
                 .to({x: this.viewPoint2.x, y: this.viewPoint2.y, z: this.viewPoint2.z}, duration)
-                .easing(TWEEN.Easing.Linear.None)
+                .easing(TWEEN.Easing.Quadratic.InOut)
                 .onUpdate(() => {
+                    if (!this.isAnimatingCamera)
+                        secondTween.stop();
                     camera.lookAt(this.position);
                 })
                 .onComplete(() => {
-                    if (this.isAnimatingCamera)
-                        thirdTween.start();
+                    thirdTween.start();
                 })
             const thirdTween = new TWEEN.Tween(camera.position)
                 .to({x: this.viewPoint3.x, y: this.viewPoint3.y, z: this.viewPoint3.z}, duration)
-                .easing(TWEEN.Easing.Linear.None)
+                .easing(TWEEN.Easing.Quadratic.InOut)
                 .onUpdate(() => {
+                    if (!this.isAnimatingCamera)
+                        thirdTween.stop();
                     camera.lookAt(this.position);
                 })
                 .onComplete(() => {
-                    if (this.isAnimatingCamera)
-                        fourthTween.start();
+                    fourthTween.start();
                 })
             const fourthTween = new TWEEN.Tween(camera.position)
                 .to({x: this.viewPoint4.x, y: this.viewPoint4.y, z: this.viewPoint4.z}, duration)
-                .easing(TWEEN.Easing.Linear.None)
+                .easing(TWEEN.Easing.Quadratic.InOut)
                 .onUpdate(() => {
+                    if (!this.isAnimatingCamera)
+                        fourthTween.stop();
                     camera.lookAt(this.position);
                 })
                 .onComplete(() => {
-                    if (this.isAnimatingCamera)
-                        fifthTween.start();
+                    fifthTween.start();
                 })
             const fifthTween = new TWEEN.Tween(camera.position)
                 .to({x: this.viewPoint1.x, y: this.viewPoint1.y, z: this.viewPoint1.z}, duration)
-                .easing(TWEEN.Easing.Linear.None)
+                .easing(TWEEN.Easing.Quadratic.InOut)
                 .onUpdate(() => {
+                    if (!this.isAnimatingCamera)
+                        fifthTween.stop();
                     camera.lookAt(this.position);
                 })
                 .onComplete(() => {
-                    if (this.isAnimatingCamera)
-                        secondTween.start();
+                    secondTween.start();
                 })
             firstTween.start();
         }
@@ -316,10 +324,6 @@ class Arena extends THREE.Mesh {
             this.paddleLeft.monitorIdleAnimation();
             this.paddleRight.monitorIdleAnimation();
         }
-        // else
-        //     camera.rotation.z += 0.001;
-        if (keyDown['i'])
-            this.idleCameraAnimation();
         this.ball.particles.updateParticles();
         if (this.ball.isRolling)
             this.ball.monitorMovement();
@@ -339,7 +343,7 @@ class Arena extends THREE.Mesh {
             this.ball.isgoingLeft = false;
             this.ball.isRolling = true;
             this.ball.updateSpeedBar();
-            // this.bot.isPlaying = true;
+            this.bot.isPlaying = true;
         }
         if (keyDown['1'])
             this.changeTheme(new Theme1());
@@ -372,7 +376,6 @@ class Arena extends THREE.Mesh {
             cameraLeft.position.x += this.length * 3;
             this.paddleLeft.particles.isActive = true;
             this.paddleRight.particles.isActive = true;
-            this.ball.particles.isActive = true;
             cameraLeft.lookAt(this.position);
             swapToSplitScreen();
             this.setSplitCameraPositions(camera, cameraLeft);
@@ -399,12 +402,14 @@ class Arena extends THREE.Mesh {
             this.ball.goToLeft(this.paddleRight);
         if (this.ball.rightScore(this.paddleLeft) && !this.isBeingReset)
         {
+            this.ball.particles.isActive = true;
             this.addPoint('right');
             if (this.game.leftScore < this.game.maxScore && this.game.rightScore < this.game.maxScore)
                 this.resetPoint();
         }
         if (this.ball.leftScore(this.paddleRight) && !this.isBeingReset)
         {
+            this.ball.particles.isActive = true;
             this.addPoint('left');
             if (this.game.leftScore < this.game.maxScore && this.game.rightScore < this.game.maxScore)
                 this.resetPoint();
@@ -554,26 +559,30 @@ class Arena extends THREE.Mesh {
         .onComplete(() => {
             this.resetUI();
             loserPaddle.light.power = loserPaddle.defaultLight;
-           winnerPaddle.light.power = winnerPaddle.defaultLight;
-           this.ball.isgoingRight = true;
-           this.ball.isgoingLeft = false;
-           this.ball.light.power = this.ball.startingPower;
-           this.ball.bounceCount = 0;
-           this.ball.material.color.set(this.ball.initialColor);
-           this.isBeingReset = false;
-           if (this.game.isOver)
-           {
-                this.game.isPlaying = false;
-                this.game.isOver = false;
-                this.game.leftScore = 0;
-                this.game.rightScore = 0;
-                swapToFullScreen();
-                this.setTopView(camera);
-           }
-           this.paddleLeft.particles.isActive = false;
-           this.paddleRight.particles.isActive = false;
-           this.ball.particles.isActive = false;
-           this.idleCameraAnimation();
+            winnerPaddle.light.power = winnerPaddle.defaultLight;
+            this.ball.isgoingRight = true;
+            this.ball.isgoingLeft = false;
+            this.ball.light.power = this.ball.startingPower;
+            this.ball.bounceCount = 0;
+            this.ball.material.color.set(this.ball.initialColor);
+            this.isBeingReset = false;
+            if (this.game.isOver)
+            {
+                 this.game.isPlaying = false;
+                 this.game.isOver = false;
+                 this.game.leftScore = 0;
+                 this.game.rightScore = 0;
+                 swapToFullScreen();
+                 this.setTopView(camera);
+            }
+            this.paddleLeft.particles.explodeParticles(this.paddleLeft.position, this.paddleLeft.defaultColor);
+            this.paddleRight.particles.explodeParticles(this.paddleRight.position, this.paddleRight.defaultColor);
+            this.ball.particles.explodeParticles(this.ball.position, this.ball.initialColor);
+            this.paddleLeft.particles.isActive = false;
+            this.paddleRight.particles.isActive = false;
+            this.ball.particles.isActive = false;
+            this.idleCameraAnimation();
+            this.resetUI();
         });
         const powerPaddleLight = new TWEEN.Tween(loserPaddle.light)
         .to({power: loserPaddle.defaultLight}, duration)
@@ -679,8 +688,12 @@ class Paddle extends THREE.Group {
             arena.position.z + arena.width / 2
         );
         if (left)
+        {
             this.position.z -= arena.width;
-
+            this.camera = cameraLeft;
+        }
+        else
+            this.camera = camera;
         this.width = paddleWidth;
         this.height = paddleHeight;
         this.depth = paddleDepth;
@@ -703,6 +716,30 @@ class Paddle extends THREE.Group {
         this.flippingSpeed = 0.5;
         this.isGoingUp = true;
         this.isGoingDown = false;
+    }
+    shakeCamera(camera, intensity, duration) {
+        const originalPosition = camera.position.clone();
+        const shake = new THREE.Vector3();
+        let time = 0;
+    
+        function update() {
+            time += 1;
+            if (time > duration) {
+                camera.position.copy(originalPosition);
+                return;
+            }
+    
+            shake.set(
+                Math.random() * intensity - intensity / 2,
+                Math.random() * intensity - intensity / 2,
+                Math.random() * intensity - intensity / 2
+            );
+    
+            camera.position.add(shake);
+            requestAnimationFrame(update);
+        }
+    
+        update();
     }
     async changeBlenderModel(modelName)
     {
@@ -918,6 +955,7 @@ class Ball extends THREE.Mesh {
     {
         if (this.checkCollisionBoxSphere(paddle, this) && this.isgoingLeft && Math.abs(this.speedZ) > 0)
         {
+            paddle.shakeCamera(camera, 0.2, 10);
             paddle.particles.explodeParticles(paddle.position, paddle.material.color);
             this.justCollisioned = true;
             this.isgoingLeft = !this.isgoingLeft;
@@ -953,6 +991,7 @@ class Ball extends THREE.Mesh {
     {
         if (this.checkCollisionBoxSphere(paddle, this) && this.isgoingRight && this.speedZ > 0)
         {
+            paddle.shakeCamera(cameraLeft, 0.2, 10);
             paddle.particles.explodeParticles(paddle.position, paddle.material.color);
             this.justCollisioned = true;
             this.isgoingRight = !this.isgoingRight;
@@ -1399,6 +1438,22 @@ function glitch(glitchEffect)
     }, 500);
 }
 
+// Halftone Pass
+const params = {
+    shape: 1,
+    radius: 4,
+    rotateR: Math.PI / 12,
+    rotateB: Math.PI / 12 * 2,
+    rotateG: Math.PI / 12 * 3,
+    scatter: 0,
+    blending: 1,
+    blendingMode: 1,
+    greyscale: false,
+    disable: false
+};
+const halftonePass = new HalftonePass( window.innerWidth, window.innerHeight, params );
+// composer1.addPass( halftonePas   s );
+
 // Bloom Pass
 const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
 bloomPass.threshold = 0.5;
@@ -1419,12 +1474,40 @@ composer2.addPass(arena1.verticalBlur);
 // 				composer1.addPass( effect1 );
 
 
+function shakeCamera(camera, intensity, duration) {
+    const originalPosition = camera.position.clone();
+    const shake = new THREE.Vector3();
+    let time = 0;
+
+    function update() {
+        time += 1;
+        if (time > duration) {
+            camera.position.copy(originalPosition);
+            return;
+        }
+
+        shake.set(
+            Math.random() * intensity - intensity / 2,
+            Math.random() * intensity - intensity / 2,
+            Math.random() * intensity - intensity / 2
+        );
+
+        camera.position.add(shake);
+        requestAnimationFrame(update);
+    }
+
+    update();
+}
+
+
 function animate()
 {
     requestAnimationFrame( animate );
     // controls.update();
     TWEEN.update();
     arena1.monitorArena();
+    if (keyDown['i'])
+        shakeCamera(camera, 0.2, 10);
     composer1.render();
     composer2.render();
 }
