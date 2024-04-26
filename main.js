@@ -14,7 +14,7 @@ import { HalftonePass } from 'three/addons/postprocessing/HalftonePass.js';
 
 // CAMERA RENDERER AND SCENE //
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000020);
+scene.background = new THREE.Color(0x000010);
 const aspectRatio = window.innerWidth / window.innerHeight; // Adjust aspect ratio
 const camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 2000);
 const cameraRight = new THREE.PerspectiveCamera(95, aspectRatio / 2, 0.1, 1000 );
@@ -108,6 +108,7 @@ let keyDown = {
     'o': false,
     'p': false,
     'i': false,
+    'u': false,
     'e': false,
     'g': false,
     'b': false,
@@ -166,6 +167,155 @@ function cameraDebug()
     console.log("camera.rotation.z =  " + camera.rotation.z);
 }
 
+// Shader Stuff
+// Vertex shader code
+const vertexShader = `
+    varying vec2 vUv;
+    void main()	{
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+// Fragment shader code
+const redFragmentShader = `
+varying vec2 vUv;
+
+uniform float time;
+
+void main() {
+    vec2 p = -1.0 + 2.0 * vUv;
+    float a = time * 40.0;
+    float d, e, f, g = 1.0 / 40.0, h, i, r, q;
+
+    e = 400.0 * (p.x * 0.5 + 0.5);
+    f = 400.0 * (p.y * 0.5 + 0.5);
+    i = 200.0 + sin(e * g + a / 150.0) * 20.0;
+    d = 200.0 + cos(f * g / 2.0) * 18.0 + cos(e * g) * 7.0;
+    r = sqrt(pow(abs(i - e), 2.0) + pow(abs(d - f), 2.0));
+    q = f / r;
+    e = (r * cos(q)) - a / 2.0;
+    f = (r * sin(q)) - a / 2.0;
+    d = sin(e * g) * 176.0 + sin(e * g) * 164.0 + r;
+    h = ((f + d) + a / 2.0) * g;
+    i = cos(h + r * p.x / 1.3) * (e + e + a) + cos(q * g * 6.0) * (r + h / 3.0);
+    h = sin(f * g) * 144.0 - sin(e * g) * 212.0 * p.x;
+    h = (h + (f - e) * q + sin(r - (a + h) / 7.0) * 10.0 + i / 4.0) * g;
+    i += cos(h * 2.3 * sin(a / 350.0 - q)) * 184.0 * sin(q - (r * 4.3 + a / 12.0) * g) + tan(r * g + h) * 184.0 * cos(r * g + h);
+    i = mod(i / 5.6, 256.0) / 64.0;
+    if (i < 0.0) i += 4.0;
+    if (i >= 2.0) i = 4.0 - i;
+    d = r / 350.0;
+    d += sin(d * d * 8.0) * 0.52;
+    f = (sin(a * g) + 1.0) / 2.0;
+
+    // Further darken the colors by reducing the intensity
+    vec3 color = vec3(f * i / 6.0, i / 12.0 + d / 60.0, i / 6.0) * d * p.x + vec3(i / 5.0 + d / 30.0, i / 12.0 + d / 90.0, i / 6.0) * d * (1.0 - p.x);
+    gl_FragColor = vec4(color, 1.0);
+}
+`;
+const blueFragmentShader = `
+varying vec2 vUv;
+
+uniform float time;
+
+void main() {
+    vec2 p = -1.0 + 2.0 * vUv;
+    float a = time * 40.0;
+    float d, e, f, g = 1.0 / 40.0, h, i, r, q;
+
+    e = 400.0 * (p.x * 0.5 + 0.5);
+    f = 400.0 * (p.y * 0.5 + 0.5);
+    i = 200.0 + sin(e * g + a / 150.0) * 20.0;
+    d = 200.0 + cos(f * g / 2.0) * 18.0 + cos(e * g) * 7.0;
+    r = sqrt(pow(abs(i - e), 2.0) + pow(abs(d - f), 2.0));
+    q = f / r;
+    e = (r * cos(q)) - a / 2.0;
+    f = (r * sin(q)) - a / 2.0;
+    d = sin(e * g) * 176.0 + sin(e * g) * 164.0 + r;
+    h = ((f + d) + a / 2.0) * g;
+    i = cos(h + r * p.x / 1.3) * (e + e + a) + cos(q * g * 6.0) * (r + h / 3.0);
+    h = sin(f * g) * 144.0 - sin(e * g) * 212.0 * p.x;
+    h = (h + (f - e) * q + sin(r - (a + h) / 7.0) * 10.0 + i / 4.0) * g;
+    i += cos(h * 2.3 * sin(a / 350.0 - q)) * 184.0 * sin(q - (r * 4.3 + a / 12.0) * g) + tan(r * g + h) * 184.0 * cos(r * g + h);
+    i = mod(i / 5.6, 256.0) / 64.0;
+    if (i < 0.0) i += 4.0;
+    if (i >= 2.0) i = 4.0 - i;
+    d = r / 350.0;
+    d += sin(d * d * 8.0) * 0.52;
+
+    // Adjust the color to a much stronger blue
+    vec3 color = vec3(i / 6.0, i / 12.0 + d / 60.0, i / 2.0) * d * p.x + vec3(i / 5.0 + d / 30.0, i / 12.0 + d / 90.0, i / 2.0) * d * (1.0 - p.x);
+    gl_FragColor = vec4(color, 1.0);
+}
+`;
+
+// Fragment shader code
+const greenFragmentShader = `
+varying vec2 vUv;
+
+uniform float time;
+
+void main() {
+    vec2 p = -1.0 + 2.0 * vUv;
+    float a = time * 40.0;
+    float d, e, f, g = 1.0 / 40.0, h, i, r, q;
+
+    e = 400.0 * (p.x * 0.5 + 0.5);
+    f = 400.0 * (p.y * 0.5 + 0.5);
+    i = 200.0 + sin(e * g + a / 150.0) * 20.0;
+    d = 200.0 + cos(f * g / 2.0) * 18.0 + cos(e * g) * 7.0;
+    r = sqrt(pow(abs(i - e), 2.0) + pow(abs(d - f), 2.0));
+    q = f / r;
+    e = (r * cos(q)) - a / 2.0;
+    f = (r * sin(q)) - a / 2.0;
+    d = sin(e * g) * 176.0 + sin(e * g) * 164.0 + r;
+    h = ((f + d) + a / 2.0) * g;
+    i = cos(h + r * p.x / 1.3) * (e + e + a) + cos(q * g * 6.0) * (r + h / 3.0);
+    h = sin(f * g) * 144.0 - sin(e * g) * 212.0 * p.x;
+    h = (h + (f - e) * q + sin(r - (a + h) / 7.0) * 10.0 + i / 4.0) * g;
+    i += cos(h * 2.3 * sin(a / 350.0 - q)) * 184.0 * sin(q - (r * 4.3 + a / 12.0) * g) + tan(r * g + h) * 184.0 * cos(r * g + h);
+    i = mod(i / 5.6, 256.0) / 64.0;
+    if (i < 0.0) i += 4.0;
+    if (i >= 2.0) i = 4.0 - i;
+    d = r / 350.0;
+    d += sin(d * d * 8.0) * 0.52;
+
+    // Adjust the color to a very dark green
+    vec3 color = vec3(0.0, i * 0.1, 0.0); // Decreased intensity to make it darker
+    
+    gl_FragColor = vec4(color, 1.0);
+}
+`;
+
+const greenShaderMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        time: { value: 0.0 },
+        resolution: { value: new THREE.Vector2() }
+    },
+    vertexShader: vertexShader,
+    fragmentShader: greenFragmentShader
+});
+
+// Create shader materials
+const redShaderMaterial = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,
+    fragmentShader: redFragmentShader,
+    uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xffffff) } // Default color
+    }
+});
+
+const blueShaderMaterial = new THREE.ShaderMaterial({
+    vertexShader: vertexShader,
+    fragmentShader: blueFragmentShader,
+    uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xffffff) } // Default color
+    }
+});
+
 //ARENA CLASS
 class Arena extends THREE.Mesh {
     constructor(centerPosition, width, height, depth)
@@ -177,7 +327,8 @@ class Arena extends THREE.Mesh {
         // const texture = textureLoader.load('purplebox.jpeg');
         const arenaColor = 0x000000;
         // Create material
-        const material = new THREE.MeshPhongMaterial({color: 0x101030, wireframe:false});
+        // const material = new THREE.MeshPhongMaterial({color: 0x101030, wireframe:false});
+        const material = blueShaderMaterial;
         // Call super constructor to set up mesh
         super(geometry, material);
         
@@ -225,6 +376,7 @@ class Arena extends THREE.Mesh {
         this.viewPoint2 = new THREE.Vector3(this.position.x - this.width, this.position.y + this.height + this.width / 1.5, this.position.z + this.width * 1);
         this.viewPoint3 = new THREE.Vector3(this.position.x - this.width, this.position.y + this.height + this.width / 1.5, this.position.z - this.width * 1);
         this.viewPoint4 = new THREE.Vector3(this.position.x + this.width, this.position.y + this.height + this.width / 1.5, this.position.z - this.width * 1);
+        this.material = material;
     }
     idleCameraAnimation()
     {
@@ -346,11 +498,20 @@ class Arena extends THREE.Mesh {
             this.bot.isPlaying = true;
         }
         if (keyDown['1'])
-            this.changeTheme(new Theme1());
+        {
+            this.material = blueShaderMaterial;
+            scene.background = new THREE.Color(0x000010);
+        }
         if (keyDown['2'])
-            this.changeTheme(new Theme2());
+        {
+            this.material = greenShaderMaterial;
+            scene.background = new THREE.Color(0x001000);
+        }
         if (keyDown['3'])
-            this.changeTheme(new Theme3());
+        {
+            this.material = redShaderMaterial;
+            scene.background = new THREE.Color(0x100000);
+        }
         if (keyDown['4'])  
             this.changeTheme(new Theme4());
         if (keyDown['b'])
@@ -1407,7 +1568,7 @@ function monitorScreen()
 }
 
 const centerPosition = new THREE.Vector3(0, 0, 0);
-const arena1 = new Arena(centerPosition, 28, 4, 34);
+const arena1 = new Arena(centerPosition, 28, 1.7, 34);
 scene.add(arena1, arena1.paddleRight, arena1.paddleLeft, arena1.ball);
 arena1.idleCameraAnimation();
 
@@ -1506,8 +1667,7 @@ function animate()
     // controls.update();
     TWEEN.update();
     arena1.monitorArena();
-    if (keyDown['i'])
-        shakeCamera(camera, 0.2, 10);
+    arena1.material.uniforms.time.value += 0.01; // Adjust speed of animation
     composer1.render();
     composer2.render();
 }
