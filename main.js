@@ -285,20 +285,25 @@ class Arena extends THREE.Mesh {
     }
     addPoint(side) {
         if (side === 'left') {
-            scorePoints.item(this.game.leftScore).style.borderColor = "rgb(106, 0, 254)";
+            scorePoints.item(this.game.leftScore).style.borderColor = "rgb(171, 31, 0)";
             this.game.leftScore++;
         }
         else {
-            scorePoints.item(this.game.rightScore + 3).style.borderColor = "rgb(106, 0, 254)";
+            scorePoints.item(this.game.rightScore + 3).style.borderColor = "rgb(171, 31, 0)";
             this.game.rightScore++;
         }
     }
     resetUI() {
         for (let i = 0; i < scorePoints.length; i++) {
             scorePoints.item(i).style.borderColor = "#3777ff";
+            if (i > 1)
+                return;
+            speedBar.item(i).animate([{
+                top: "100%",
+                left: "100%",
+                backgroundColor: "rgb(9, 0, 187)",
+            }], {duration: 500, fill: "forwards"})
         }
-        speedBar.item(0).style.top = "100%";
-        speedBar.item(0).style.left = "100%";
     }
     monitorArena()
     {
@@ -333,6 +338,7 @@ class Arena extends THREE.Mesh {
             this.ball.isgoingRight = true;
             this.ball.isgoingLeft = false;
             this.ball.isRolling = true;
+            this.ball.updateSpeedBar();
             // this.bot.isPlaying = true;
         }
         if (keyDown['1'])
@@ -364,6 +370,9 @@ class Arena extends THREE.Mesh {
             cameraLeft.position.y += this.length * 3;
             cameraLeft.position.z -= this.length * 3;
             cameraLeft.position.x += this.length * 3;
+            this.paddleLeft.particles.isActive = true;
+            this.paddleRight.particles.isActive = true;
+            this.ball.particles.isActive = true;
             cameraLeft.lookAt(this.position);
             swapToSplitScreen();
             this.setSplitCameraPositions(camera, cameraLeft);
@@ -561,6 +570,9 @@ class Arena extends THREE.Mesh {
                 swapToFullScreen();
                 this.setTopView(camera);
            }
+           this.paddleLeft.particles.isActive = false;
+           this.paddleRight.particles.isActive = false;
+           this.ball.particles.isActive = false;
            this.idleCameraAnimation();
         });
         const powerPaddleLight = new TWEEN.Tween(loserPaddle.light)
@@ -865,7 +877,7 @@ class Ball extends THREE.Mesh {
     }
     updateSpeedBar() {
         const percent = -95 * (Math.abs(this.speedZ)) / this.arena.maxSpeed + 100;
-        const hue = 240 + ((100 - percent) / 100) * 40;
+        const hue = 10 + (percent / 100) * 60;
         let color = `hsl(${hue}, 100%, 50%)`;
         for (let i = 0; i < speedBar.length; i++) {
             if (i === 1)
@@ -1195,21 +1207,20 @@ class Particle {
         }
     }
     explodeParticles(position, color) {
-        this.isActive = true;
-        for (let i = 0; i < this.particleCount; i++) {
-            let index = i * 3;
-            this.positions[index] = position.x;
-            this.positions[index + 1] = position.y;
-            this.positions[index + 2] = position.z + this.offsetZ;
-
-            // Color (white in this example)
-            this.colors[index] = color.r;
-            this.colors[index + 1] = color.g;
-            this.colors[index + 2] = color.b;
+        if (this.isActive)
+        {
+            for (let i = 0; i < this.particleCount; i++) {
+                let index = i * 3;
+                this.positions[index] = position.x;
+                this.positions[index + 1] = position.y;
+                this.positions[index + 2] = position.z + this.offsetZ;
+                this.colors[index] = color.r;
+                this.colors[index + 1] = color.g;
+                this.colors[index + 2] = color.b;
+            }
+            this.geometry.attributes.position.needsUpdate = true;
+            this.geometry.attributes.color.needsUpdate = true;
         }
-
-        this.geometry.attributes.position.needsUpdate = true;
-        this.geometry.attributes.color.needsUpdate = true;
     }
     updateParticles() {
         if (this.isActive)
